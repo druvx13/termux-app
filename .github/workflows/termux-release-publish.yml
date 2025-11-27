@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 env:
-  NEW_APP_ID: com.druvx13.termux    # change this string if you want another package id
+  NEW_APP_ID: com.druvx13.termux    # change if you want another fork id
 
 jobs:
   build-and-release:
@@ -20,11 +20,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 11
+      # JDK 17 so setup-android/sdkmanager works
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '11'
+          java-version: '17'
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -35,7 +36,7 @@ jobs:
       - name: Make Gradle executable
         run: chmod +x ./gradlew
 
-      # --- PATCH PACKAGE NAME ONLY ON THE RUNNER ---
+      # Patch package name only in the runner
       - name: Patch package name to fork id
         run: |
           OLD_ID="com.termux"
@@ -49,18 +50,17 @@ jobs:
             sed -i "s/applicationId \"$OLD_ID\"/applicationId \"$NEW_ID\"/" app/build.gradle || true
           fi
 
-          # Main manifest package + occurrences
+          # Main manifest
           if [ -f app/src/main/AndroidManifest.xml ]; then
             sed -i "s/package=\"$OLD_ID\"/package=\"$NEW_ID\"/" app/src/main/AndroidManifest.xml || true
             sed -i "s/$OLD_ID/$NEW_ID/g" app/src/main/AndroidManifest.xml || true
           fi
 
-          # TermuxConstants: TERMUX_PACKAGE_NAME constant
+          # TermuxConstants: TERMUX_PACKAGE_NAME
           if [ -f termux-shared/src/main/java/com/termux/shared/termux/TermuxConstants.java ]; then
             sed -i "s/TERMUX_PACKAGE_NAME = \"$OLD_ID\"/TERMUX_PACKAGE_NAME = \"$NEW_ID\"/" termux-shared/src/main/java/com/termux/shared/termux/TermuxConstants.java || true
           fi
 
-      # Generate throwaway release keystore
       - name: Generate release keystore
         run: |
           keytool -genkeypair \
@@ -73,7 +73,6 @@ jobs:
             -dname "CN=TermuxFork,O=Self,C=US" \
             -keystore termux-release.keystore
 
-      # Build SIGNED release APKs with patched package id
       - name: Build signed release APKs
         run: |
           ./gradlew assembleRelease --no-daemon \
