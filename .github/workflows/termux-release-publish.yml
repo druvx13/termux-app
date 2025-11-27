@@ -1,4 +1,4 @@
-name: Termux Release APK (signed + publish, fork pkg)
+name: Termux Release APK (signed + publish)
 
 on:
   workflow_dispatch:
@@ -8,9 +8,6 @@ on:
 
 permissions:
   contents: write
-
-env:
-  NEW_APP_ID: com.druvx13.termux    # change this if you want another package id
 
 jobs:
   build-and-release:
@@ -35,31 +32,6 @@ jobs:
       - name: Make Gradle executable
         run: chmod +x ./gradlew
 
-      # --- PATCH PACKAGE NAME ONLY ON THE RUNNER ---
-      - name: Patch package name to fork id
-        run: |
-          OLD_ID="com.termux"
-          NEW_ID="${NEW_APP_ID}"
-
-          echo "Old ID: $OLD_ID"
-          echo "New ID: $NEW_ID"
-
-          # app/build.gradle – applicationId
-          if [ -f app/build.gradle ]; then
-            sed -i "s/applicationId \"$OLD_ID\"/applicationId \"$NEW_ID\"/" app/build.gradle || true
-          fi
-
-          # Main manifest package + occurrences
-          if [ -f app/src/main/AndroidManifest.xml ]; then
-            sed -i "s/package=\"$OLD_ID\"/package=\"$NEW_ID\"/" app/src/main/AndroidManifest.xml || true
-            sed -i "s/$OLD_ID/$NEW_ID/g" app/src/main/AndroidManifest.xml || true
-          fi
-
-          # TermuxConstants: TERMUX_PACKAGE_NAME constant
-          if [ -f termux-shared/src/main/java/com/termux/shared/termux/TermuxConstants.java ]; then
-            sed -i "s/TERMUX_PACKAGE_NAME = \"$OLD_ID\"/TERMUX_PACKAGE_NAME = \"$NEW_ID\"/" termux-shared/src/main/java/com/termux/shared/termux/TermuxConstants.java || true
-          fi
-
       - name: Generate release keystore
         run: |
           keytool -genkeypair \
@@ -83,7 +55,7 @@ jobs:
       - name: Upload signed release APKs as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: termux-fork-signed-release-apks
+          name: termux-signed-release-apks
           path: app/build/outputs/apk/**/*.apk
 
       - name: Publish GitHub Release with APKs
